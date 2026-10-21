@@ -1,0 +1,212 @@
+// Job Autopilot data model.
+// SQLite keeps the whole thing a single file you can back up or delete.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Everything the portals ask for about you. One row, id = "me".
+model Profile {
+  id                    String   @id @default("me")
+  fullName              String   @default("")
+  email                 String   @default("")
+  phone                 String   @default("")
+  currentCity           String   @default("")
+  preferredLocations    String   @default("[]") // JSON string[]
+  willingToRelocate     Boolean  @default(true)
+
+  currentTitle          String   @default("")
+  currentCompany        String   @default("")
+  totalExperienceMonths Int      @default(0)
+  currentCtcLpa         Float?
+  expectedCtcLpa        Float?
+  noticePeriodDays      Int      @default(30)
+  servingNotice         Boolean  @default(false)
+
+  highestQualification  String   @default("")
+  specialization        String   @default("")
+  institute             String   @default("")
+  graduationYear        Int?
+
+  skills                String   @default("[]") // JSON string[]
+  linkedinUrl           String   @default("")
+  githubUrl             String   @default("")
+  portfolioUrl          String   @default("")
+
+  // Portals ask these constantly. All optional; blank is fine.
+  gender                String   @default("")
+  dateOfBirth           String   @default("")
+  nationality           String   @default("Indian")
+  needsVisaSponsorship  Boolean  @default(false)
+  differentlyAbled      Boolean  @default(false)
+
+  summary               String   @default("")
+
+  /// Structured resume (see src/lib/resume/schema.ts) as JSON.
+  resumeJson            String   @default("")
+  /// Plain text of the uploaded resume, kept for grounding + diffing.
+  resumeText            String   @default("")
+  resumeFileName        String   @default("")
+  resumeFilePath        String   @default("")
+
+  /// Free-text answers the agent may reuse for unknown questions.
+  extraAnswers          String   @default("{}") // JSON Record<string,string>
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+/// What to search for, where, and how aggressively. One row, id = "default".
+model SearchPreference {
+  id                   String   @id @default("default")
+  titles               String   @default("[]")  // JSON string[] - search queries
+  mustHaveKeywords     String   @default("[]")
+  excludeKeywords      String   @default("[]")
+  locations            String   @default("[]")
+  remoteOnly           Boolean  @default(false)
+
+  minExperienceYears   Float    @default(0)
+  maxExperienceYears   Float    @default(50)
+  minSalaryLpa         Float?
+  jobTypes             String   @default("[\"full-time\"]")
+
+  /// Which connectors are live. JSON string[] of connector ids.
+  enabledPortals       String   @default("[\"greenhouse\",\"lever\",\"ashby\"]")
+
+  /// Safety rails. These exist so you do not get rate-limited or banned.
+  minMatchScore        Int      @default(65)
+  dailyApplicationCap  Int      @default(25)
+  perPortalHourlyCap   Int      @default(6)
+  minSecondsBetweenApps Int     @default(90)
+
+  /// false = agent prepares everything and waits for you to click Submit.
+  autoSubmit           Boolean  @default(false)
+  /// Quiet hours in local time, so applications land at plausible times.
+  activeHoursStart     Int      @default(8)
+  activeHoursEnd       Int      @default(23)
+
+  searchIntervalMinutes Int     @default(45)
+
+  updatedAt            DateTime @updatedAt
+}
+
+/// Saved login for a portal. Password is AES-256-GCM encrypted at rest.
+model PortalAccount {
+  id               String   @id @default(cuid())
+  portal           String   @unique
+  username         String   @default("")
+  passwordEnc      String   @default("")
+  /// Playwright storageState path - the real auth, so we rarely log in again.
+  storageStatePath String   @default("")
+  status           String   @default("unknown") // unknown | ok | needs_login | locked
+  lastCheckedAt    DateTime?
+  note             String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// A job we found. Deduped on (portal, externalId).
+model Job {
+  id             String   @id @default(cuid())
+  portal         String
+  externalId     String
+  url            String
+  title          String
+  company        String   @default("")
+  location       String   @default("")
+  description    String   @default("")
+  salaryText     String   @default("")
+  experienceText String   @default("")
+  postedText     String   @default("")
+  raw            String   @default("{}")
+
+  matchScore     Int?
+  matchReason    String   @default("")
+  matchedAt      DateTime?
+
+  /// new | scored | rejected | queued | applying | applied | failed | needs_human | skipped
+  status         String   @default("new")
+  skipReason     String   @default("")
+
+  discoveredAt   DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  application    Application?
+  resumeVariant  ResumeVariant?
+
+  @@unique([portal, externalId])
+  @@index([status])
+  @@index([matchScore])
+}
+
+model Application {
+  id            String   @id @default(cuid())
+  jobId         String   @unique
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  /// prepared | submitted | failed | needs_human | withdrawn
+  status        String   @default("prepared")
+  submittedAt   DateTime?
+  method        String   @default("")  // portal-apply | easy-apply | ats-form | email
+  coverLetter   String   @default("")
+  answers       String   @default("{}") // JSON of every question we answered
+  resumePath    String   @default("")
+  screenshotPath String  @default("")
+  confirmation  String   @default("")
+  error         String   @default("")
+  attempts      Int      @default(0)
+  /// agent | human
+  submittedBy   String   @default("agent")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+}
+
+/// A resume tailored to one job. Always derived from your real resume.
+model ResumeVariant {
+  id           String   @id @default(cuid())
+  jobId        String   @unique
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  json         String   @default("{}")
+  markdown     String   @default("")
+  pdfPath      String   @default("")
+  /// Human-readable list of what changed vs. the base resume, for your review.
+  changeLog    String   @default("[]")
+  /// Claims the model wanted to add that were not in the base resume. Always empty
+  /// in normal operation; if not, something went wrong and we do not submit.
+  unsupported  String   @default("[]")
+  createdAt    DateTime @default(now())
+}
+
+model RunLog {
+  id        String   @id @default(cuid())
+  level     String   @default("info") // debug | info | warn | error
+  scope     String   @default("")
+  message   String
+  data      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Single row controlling the worker. id = "singleton".
+model AgentState {
+  id             String   @id @default("singleton")
+  running        Boolean  @default(false)
+  phase          String   @default("idle")
+  lastHeartbeat  DateTime?
+  lastError      String   @default("")
+  /// Set when a captcha / OTP / unexpected page needs you. Worker pauses.
+  needsHumanJobId String  @default("")
+  needsHumanReason String @default("")
+  appliedToday   Int      @default(0)
+  countersDate   String   @default("")
+  updatedAt      DateTime @updatedAt
+}

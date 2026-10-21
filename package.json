@@ -1,0 +1,47 @@
+{
+  "name": "job-autopilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autopilot job-application agent for Indian job portals and ATS boards.",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3000",
+    "worker": "tsx src/worker/index.ts",
+    "dev:all": "concurrently -n web,worker -c cyan,magenta \"npm:dev\" \"npm:worker\"",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate",
+    "setup": "node scripts/setup.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
+    "selftest": "tsx scripts/selftest.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.0.0",
+    "@prisma/client": "^6.1.0",
+    "exceljs": "^4.4.0",
+    "mammoth": "^1.8.0",
+    "next": "^15.1.0",
+    "playwright": "^1.49.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "dotenv": "^16.4.7",
+    "postcss": "^8.4.49",
+    "prisma": "^6.1.0",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
