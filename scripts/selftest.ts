@@ -11,7 +11,7 @@ import http from "node:http";
 import { prisma, s } from "../src/lib/db";
 import { ensureDirs } from "../src/lib/paths";
 import { getRenderContext, closeAll } from "../src/automation/browser";
-import { scanForm, planAnswers, fillForm, findSubmitButton } from "../src/automation/formfill";
+import { scanForm, planAnswers, fillForm, findSubmitButton, uploadResume } from "../src/automation/formfill";
 import { deterministicAnswer, bestOption } from "../src/automation/fields";
 import { verifyTailoring } from "../src/lib/resume/verify";
 import { renderResumePdf } from "../src/lib/resume/render";
@@ -53,6 +53,7 @@ const FORM_HTML = `<!doctype html><html><body>
     <label><input type="radio" name="reloc" value="y"> Yes</label>
     <label><input type="radio" name="reloc" value="n"> No</label>
   </fieldset>
+  <label for="pic">Profile photo</label><input id="pic" type="file" name="photo" accept="image/*">
   <label for="res">Resume</label><input id="res" type="file" name="resume" accept=".pdf">
   <label for="why">Why do you want this role?</label><textarea id="why" name="why" maxlength="600"></textarea>
   <input type="hidden" name="csrf" value="x">
@@ -231,12 +232,25 @@ async function main() {
   const submit = await findSubmitButton(page);
   check("found Submit, not Save draft", submit !== null && /submit/i.test((await submit!.innerText()).trim()));
 
+  console.log("\nResume upload");
+  const pdf = await renderResumePdf(RESUME, "selftest");
+  check("resume PDF rendered", fs.existsSync(pdf) && fs.statSync(pdf).size > 2000, pdf);
+
+  const uploaded = await uploadResume(page, pdf);
+  check("uploadResume reported success", uploaded);
+  const resumeFiles = await page.locator("#res").evaluate(
+    (el) => Array.from((el as HTMLInputElement).files ?? []).map((f) => f.name),
+  );
+  check(`PDF attached to the resume input (${resumeFiles.join(",") || "none"})`, resumeFiles.length === 1);
+  const photoFiles = await page.locator("#pic").evaluate(
+    (el) => Array.from((el as HTMLInputElement).files ?? []).map((f) => f.name),
+  );
+  check("photo input was left alone", photoFiles.length === 0);
+
   await page.close();
   server.close();
 
   console.log("\nOutputs");
-  const pdf = await renderResumePdf(RESUME, "selftest");
-  check("resume PDF rendered", fs.existsSync(pdf) && fs.statSync(pdf).size > 2000, pdf);
 
   await prisma.job.upsert({
     where: { portal_externalId: { portal: "selftest", externalId: "1" } },
