@@ -1,7 +1,11 @@
-node_modules/
-.next/
-out/
-build/
+# Paths are anchored with a leading slash on purpose. A bare "logs/" matches a
+# directory of that name at ANY depth: it silently excluded src/app/api/logs/
+# and shipped a repo whose dashboard had no activity feed. Same trap applied to
+# exports/, resumes/, screenshots/ and build/.
+/node_modules/
+/.next/
+/out/
+/build/
 *.tsbuildinfo
 next-env.d.ts
 
@@ -9,17 +13,13 @@ next-env.d.ts
 .env.local
 .env*.local
 
-data/
-!data/.gitkeep
+# Runtime state. The database, uploaded resumes, tailored PDFs, screenshots,
+# browser profiles, exports and logs all live under data/, so one rule covers
+# them and none of it can collide with a source directory.
+/data/
+!/data/.gitkeep
 *.db
 *.db-journal
 *.sqlite
-
-browser-profiles/
-artifacts/
-exports/
-resumes/
-screenshots/
-logs/
 
 .DS_Store
