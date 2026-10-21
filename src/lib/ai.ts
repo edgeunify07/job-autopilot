@@ -13,16 +13,42 @@ export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
 let _client: Anthropic | null = null;
 
+/**
+ * Empty when talking to Anthropic directly. Set ANTHROPIC_BASE_URL to use a
+ * gateway or compatible provider instead — note that everything this app sends
+ * (your resume, contact details, salary) then passes through that operator.
+ */
+export const baseURL = () => process.env.ANTHROPIC_BASE_URL || "";
+
 export function ai(): Anthropic {
-  if (!_client) _client = new Anthropic();
+  if (!_client) {
+    const url = baseURL();
+    _client = new Anthropic(url ? { baseURL: url } : {});
+  }
   return _client;
 }
 
+const PLACEHOLDER = "sk-ant-...";
+
 export function aiConfigured(): boolean {
-  const key = process.env.ANTHROPIC_API_KEY ?? "";
-  // The .env.example placeholder is truthy but useless; treat it as unset.
-  const real = key.startsWith("sk-ant-") && key.length > 20;
-  return real || Boolean(process.env.ANTHROPIC_AUTH_TOKEN);
+  const key = (process.env.ANTHROPIC_API_KEY ?? "").trim();
+  // Any non-placeholder key counts: gateways issue their own key formats.
+  return (key.length > 16 && key !== PLACEHOLDER) || Boolean(process.env.ANTHROPIC_AUTH_TOKEN);
+}
+
+/**
+ * Not every endpoint implements structured outputs (`output_config.format`).
+ * The first time one rejects it we stop sending it and fall back to asking for
+ * JSON in the prompt, so a basic Messages-API endpoint still works.
+ */
+let structuredOutputsSupported = true;
+
+function looksUnsupported(err: unknown): boolean {
+  if (!(err instanceof Anthropic.APIError)) return false;
+  if (err.status !== 400 && err.status !== 404 && err.status !== 422) return false;
+  return /output_config|output_format|json_schema|unsupported|unknown (field|parameter)|unexpected/i.test(
+    err.message ?? "",
+  );
 }
 
 /** Retry only what is worth retrying: rate limits, 5xx, and connection drops. */
@@ -73,22 +99,81 @@ export async function structured<S extends z.ZodType>(opts: StructuredOpts<S>): 
     label = "structured",
   } = opts;
 
+  if (structuredOutputsSupported) {
+    try {
+      const res = await withRetry(
+        () =>
+          ai().messages.parse({
+            model,
+            max_tokens: maxTokens,
+            system,
+            messages: [{ role: "user", content: user }],
+            output_config: { format: zodOutputFormat(schema), effort },
+          }),
+        label,
+      );
+      if (res.stop_reason === "refusal") {
+        throw new Error(`Model declined (${res.stop_details?.category ?? "unknown"}): ${label}`);
+      }
+      return (res.parsed_output as z.infer<S> | null) ?? null;
+    } catch (err) {
+      if (!looksUnsupported(err)) throw err;
+      structuredOutputsSupported = false;
+      // eslint-disable-next-line no-console
+      console.warn("[ai] Endpoint rejected structured outputs; using JSON-in-prompt for the rest of this run.");
+    }
+  }
+  return structuredFallback({ schema, system, user, model, maxTokens, label });
+}
+
+/** JSON asked for in the prompt, then extracted and validated against the schema here. */
+async function structuredFallback<S extends z.ZodType>(opts: {
+  schema: S;
+  system: string;
+  user: Anthropic.MessageParam["content"];
+  model: string;
+  maxTokens: number;
+  label: string;
+}): Promise<z.infer<S> | null> {
+  const { schema, system, user, model, maxTokens, label } = opts;
+  const jsonSchema = zodOutputFormat(schema).schema;
+
   const res = await withRetry(
     () =>
-      ai().messages.parse({
+      ai().messages.create({
         model,
         max_tokens: maxTokens,
-        system,
+        system:
+          `${system}\n\nRespond with a single JSON object and nothing else — no prose, no markdown fence. ` +
+          `It must validate against this JSON Schema:\n${JSON.stringify(jsonSchema)}`,
         messages: [{ role: "user", content: user }],
-        output_config: { format: zodOutputFormat(schema), effort },
       }),
-    label,
+    `${label}-fallback`,
   );
 
   if (res.stop_reason === "refusal") {
     throw new Error(`Model declined (${res.stop_details?.category ?? "unknown"}): ${label}`);
   }
-  return (res.parsed_output as z.infer<S> | null) ?? null;
+
+  const raw = res.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("")
+    .trim();
+
+  // Models sometimes wrap JSON in a fence or add a sentence; take the outermost object.
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const body = (fenced?.[1] ?? raw).trim();
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+
+  try {
+    const parsed = schema.safeParse(JSON.parse(body.slice(start, end + 1)));
+    return parsed.success ? (parsed.data as z.infer<S>) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Plain prose out: cover letters, one-line answers to portal questions. */

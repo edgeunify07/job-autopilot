@@ -5,7 +5,7 @@ import { PortalLogin } from "@/components/PortalLogin";
 import { savePreferencesAction, saveBoardsAction } from "../actions";
 import { connectorSummaries } from "@/connectors";
 import { loadBoards } from "@/connectors/boards";
-import { MODELS } from "@/lib/ai";
+import { MODELS, baseURL } from "@/lib/ai";
 import { paths } from "@/lib/paths";
 
 export const dynamic = "force-dynamic";
@@ -153,6 +153,19 @@ export default async function SettingsPage() {
           <dd className="font-mono text-xs text-slate-300">{MODELS.main}</dd>
           <dt className="text-slate-500">Job scoring</dt>
           <dd className="font-mono text-xs text-slate-300">{MODELS.bulk}</dd>
+          <dt className="text-slate-500">API endpoint</dt>
+          <dd className="font-mono text-xs text-slate-300">
+            {baseURL() ? (
+              <>
+                {baseURL()}
+                <span className="ml-2 font-sans text-warn">
+                  third-party gateway — your resume and details pass through it
+                </span>
+              </>
+            ) : (
+              "api.anthropic.com (direct)"
+            )}
+          </dd>
           <dt className="text-slate-500">Data directory</dt>
           <dd className="font-mono text-xs text-slate-300">{paths.root}</dd>
           <dt className="text-slate-500">Spreadsheets</dt>

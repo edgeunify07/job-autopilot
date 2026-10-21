@@ -48,14 +48,14 @@ export function LiveLog({ pollMs = 4000 }: { pollMs?: number }) {
   }, [entries, paused]);
 
   return (
-    <div className="card">
+    <div className="card flex h-full flex-col">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">Activity</h2>
         <button type="button" onClick={() => setPaused((p) => !p)} className="text-xs text-slate-500 hover:text-white">
           {paused ? "Resume" : "Pause"}
         </button>
       </div>
-      <div ref={boxRef} className="h-72 overflow-y-auto rounded-lg bg-ink p-3 font-mono text-xs leading-relaxed">
+      <div ref={boxRef} className="min-h-72 flex-1 overflow-y-auto rounded-lg bg-ink p-3 font-mono text-xs leading-relaxed">
         {entries.length === 0 ? (
           <p className="text-slate-600">Nothing yet. Start the worker with `npm run worker`.</p>
         ) : (
