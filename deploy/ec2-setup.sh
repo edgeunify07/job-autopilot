@@ -212,7 +212,19 @@ systemctl is-active --quiet job-autopilot-worker && echo "    worker: running" |
 CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://127.0.0.1:${APP_PORT}/login" || echo 000)
 [ "$CODE" = "200" ] && echo "    dashboard responding on ${APP_PORT}" || warn "dashboard returned HTTP ${CODE}"
 
-PUBLIC_IP=$(curl -s --max-time 5 http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "<your-ec2-ip>")
+# Current Ubuntu AMIs default to IMDSv2 (token required); the plain v1 GET
+# returns 401/403 there, so ask for a token first and fall back to v1.
+IMDS_TOKEN=$(curl -sS -X PUT --max-time 3 \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 60" \
+  http://169.254.169.254/latest/api/token 2>/dev/null || true)
+if [ -n "$IMDS_TOKEN" ]; then
+  PUBLIC_IP=$(curl -sS --max-time 3 -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+    http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)
+else
+  PUBLIC_IP=$(curl -sS --max-time 3 \
+    http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)
+fi
+case "$PUBLIC_IP" in ''|*[!0-9.]*) PUBLIC_IP="<your-ec2-ip>";; esac
 
 cat <<DONEEOF
 
