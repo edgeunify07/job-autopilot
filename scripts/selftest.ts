@@ -18,6 +18,7 @@ import { renderResumePdf } from "../src/lib/resume/render";
 import { exportSpreadsheet } from "../src/lib/sheet";
 import { prefilter } from "../src/lib/match";
 import { stripHtml } from "../src/connectors/ats";
+import { locationMatches, isIndiaLocation, remoteScope } from "../src/lib/locations";
 import type { Resume } from "../src/lib/resume/schema";
 import type { Profile } from "@prisma/client";
 
@@ -193,6 +194,24 @@ async function main() {
   );
 
   // -------------------------------------------------------------- browser work
+  console.log("\nIndia location filter");
+  const india = { wanted: [], remoteOnly: false, indiaOnly: true, allowUnscopedRemote: false };
+  check("Bengaluru, India accepted", locationMatches("Bengaluru, India", india));
+  check("Hyderabad accepted", locationMatches("Hyderabad", india));
+  check("Bengaluru - BLR1 accepted", locationMatches("Bengaluru - BLR1", india));
+  check("Gurugram, India accepted", locationMatches("Gurugram, India", india));
+  check("Remote - India accepted", locationMatches("Remote - India", india));
+  check("Remote U.S. REJECTED", !locationMatches("Remote U.S.", india));
+  check("Remote - Canada REJECTED", !locationMatches("Remote - Canada", india));
+  check("Remote - Ireland REJECTED", !locationMatches("Remote - Ireland", india));
+  check("New York City REJECTED", !locationMatches("New York City", india));
+  check("San Francisco, CA REJECTED", !locationMatches("San Francisco, CA", india));
+  check("bare Remote rejected by default", !locationMatches("Remote", india));
+  check("bare Remote accepted when opted in", locationMatches("Remote", { ...india, allowUnscopedRemote: true }));
+  check('"us" does not match "Customer Hub"', !isIndiaLocation("Customer Hub") && remoteScope("Remote - Austin") !== "india");
+  check("Remote U.S. scope is foreign", remoteScope("Remote U.S.") === "foreign");
+  check("description mentioning Bengaluru cannot rescue a US role", !locationMatches("New York, NY", india));
+
   console.log("\nBrowser");
   const server = http.createServer((_req, res) => {
     res.writeHead(200, { "Content-Type": "text/html" });

@@ -185,6 +185,8 @@ export async function savePreferencesAction(_prev: ActionResult | null, fd: Form
       excludeKeywords: s(list(fd, "excludeKeywords")),
       locations: s(list(fd, "locations")),
       remoteOnly: bool(fd, "remoteOnly"),
+      indiaOnly: bool(fd, "indiaOnly"),
+      allowUnscopedRemote: bool(fd, "allowUnscopedRemote"),
       minExperienceYears: num(fd, "minExperienceYears") ?? 0,
       maxExperienceYears: num(fd, "maxExperienceYears") ?? 50,
       minSalaryLpa: num(fd, "minSalaryLpa"),

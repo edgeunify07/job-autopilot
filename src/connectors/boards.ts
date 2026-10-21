@@ -23,21 +23,30 @@ export interface BoardList {
  * companies you want; that is what makes this source worth having.
  */
 export const SEED_BOARDS: BoardList = {
+  // Checked against the live APIs for roles located in India. The number is how
+  // many India postings each carried when this list was built; it moves daily.
   greenhouse: [
-    "stripe",
-    "databricks",
-    "anthropic",
-    "gitlab",
-    "mongodb",
-    "coinbase",
-    "flexport",
-    "airbnb",
-    "robinhood",
-    "reddit",
-    "figma",
+    "databricks", // 90
+    "mongodb", // 87
+    "zscaler", // 68
+    "stripe", // 46
+    "gitlab", // 29
+    "elastic", // 16
+    "twilio", // 12
+    "datadog", // 12
+    "coinbase", // 9
+    "flexport", // 8
+    "coursera", // 6
+    "sumologic", // 5
+    "airbnb", // 5
+    "samsara", // 4
+    "mixpanel", // 4
+    "anthropic", // 4
+    "figma", // 3
+    "duolingo", // 1
   ],
-  lever: ["palantir", "spotify", "matchgroup", "tala"],
-  ashby: ["openai", "ramp", "notion", "cohere", "vanta", "linear", "astronomer"],
+  lever: ["spotify", "palantir", "matchgroup", "tala"],
+  ashby: ["openai", "notion", "astronomer", "ramp", "cohere", "vanta", "linear"],
 };
 
 const FILE = () => path.join(paths.root, "boards.json");

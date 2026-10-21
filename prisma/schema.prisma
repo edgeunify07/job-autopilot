@@ -69,6 +69,10 @@ model SearchPreference {
   excludeKeywords      String   @default("[]")
   locations            String   @default("[]")
   remoteOnly           Boolean  @default(false)
+  /// Reject roles outside India, including "Remote - U.S."-style postings.
+  indiaOnly            Boolean  @default(true)
+  /// Accept a bare "Remote" with no country named. Most are country-locked.
+  allowUnscopedRemote  Boolean  @default(false)
 
   minExperienceYears   Float    @default(0)
   maxExperienceYears   Float    @default(50)

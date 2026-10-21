@@ -184,7 +184,21 @@ export default async function SetupPage() {
             <Field label="Max experience (years)" name="maxExperienceYears" type="number" step="0.5" defaultValue={prefs?.maxExperienceYears ?? 50} />
           </div>
 
-          <Toggle label="Remote roles only" name="remoteOnly" defaultChecked={prefs?.remoteOnly} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Toggle
+              label="Jobs in India only"
+              name="indiaOnly"
+              defaultChecked={prefs?.indiaOnly ?? true}
+              hint="Keeps roles located in India, whoever the employer is. Drops US/EU-remote postings you could not take."
+            />
+            <Toggle label="Remote roles only" name="remoteOnly" defaultChecked={prefs?.remoteOnly} />
+            <Toggle
+              label={'Include unscoped "Remote" roles'}
+              name="allowUnscopedRemote"
+              defaultChecked={prefs?.allowUnscopedRemote}
+              hint="Postings that say only 'Remote' with no country. Many turn out to be country-locked."
+            />
+          </div>
 
           <div>
             <p className="label">Where to search</p>

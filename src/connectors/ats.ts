@@ -3,6 +3,7 @@ import { loadBoards } from "./boards";
 import { getPortalContext } from "../automation/browser";
 import { applyViaContext } from "../automation/apply";
 import { logger } from "../lib/logger";
+import { locationMatches } from "../lib/locations";
 
 const UA = "job-autopilot/0.1 (personal job search)";
 
@@ -42,15 +43,23 @@ async function getJson<T>(url: string): Promise<T | null> {
   }
 }
 
-/** Keep only postings that plausibly match what the user is looking for. */
+/**
+ * Keep only postings that plausibly match what the user is looking for.
+ *
+ * Title matching may consult the description; location matching may NOT — a US
+ * role whose text mentions a Bengaluru office is still a US role.
+ */
 function matchesQuery(posting: JobPosting, params: SearchParams): boolean {
-  const hay = `${posting.title} ${posting.location} ${posting.description.slice(0, 1500)}`.toLowerCase();
+  const hay = `${posting.title} ${posting.description.slice(0, 1500)}`.toLowerCase();
   const titleHit = params.queries.length === 0 || params.queries.some((q) => hay.includes(q.toLowerCase()));
   if (!titleHit) return false;
 
-  if (params.remoteOnly) return /remote|anywhere|work from home/i.test(`${posting.location} ${hay}`);
-  if (params.locations.length === 0) return true;
-  return params.locations.some((loc) => hay.includes(loc.toLowerCase())) || /remote/i.test(posting.location);
+  return locationMatches(posting.location, {
+    wanted: params.locations,
+    remoteOnly: params.remoteOnly,
+    indiaOnly: params.indiaOnly,
+    allowUnscopedRemote: params.allowUnscopedRemote,
+  });
 }
 
 // ---------------------------------------------------------------- Greenhouse

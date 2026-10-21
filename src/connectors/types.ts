@@ -20,6 +20,10 @@ export interface SearchParams {
   queries: string[];
   locations: string[];
   remoteOnly: boolean;
+  /** Reject anything outside India, including foreign-remote roles. */
+  indiaOnly: boolean;
+  /** Accept a bare "Remote" that names no country. Most are country-locked. */
+  allowUnscopedRemote: boolean;
   /** Hard ceiling per query, so one run cannot balloon. */
   maxPerQuery: number;
 }

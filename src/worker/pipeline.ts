@@ -43,6 +43,8 @@ export async function discover(): Promise<number> {
         queries,
         locations,
         remoteOnly: prefs.remoteOnly,
+        indiaOnly: prefs.indiaOnly,
+        allowUnscopedRemote: prefs.allowUnscopedRemote,
         maxPerQuery: 25,
       });
     } catch (err) {

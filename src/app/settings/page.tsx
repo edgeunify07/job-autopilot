@@ -39,6 +39,8 @@ export default async function SettingsPage() {
             <input key={p} type="hidden" name="portals" value={p} />
           ))}
           {prefs?.remoteOnly ? <input type="hidden" name="remoteOnly" value="true" /> : null}
+          {prefs?.indiaOnly ? <input type="hidden" name="indiaOnly" value="true" /> : null}
+          {prefs?.allowUnscopedRemote ? <input type="hidden" name="allowUnscopedRemote" value="true" /> : null}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field
