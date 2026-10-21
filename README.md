@@ -141,6 +141,33 @@ connectors do the heavy lifting — so add the specific companies you are target
 
 ---
 
+## Running it on a server
+
+```bash
+sudo bash deploy/ec2-setup.sh
+```
+
+Ubuntu 22.04/24.04. Adds swap if RAM is under 2 GB (a 1 GB box OOM-kills
+`next build` otherwise), installs Node and Chromium with its system libraries,
+writes `.env`, builds, and registers two systemd services that come back on
+reboot and on crash.
+
+The script sets `APP_PASSWORD` and prints it. **Do not skip that**: the
+dashboard holds your resume, phone number and salary, and a button that applies
+for jobs in your name. With `APP_PASSWORD` set, every page and API route is
+behind a login; without it the app assumes localhost and does not gate.
+
+Open inbound TCP 3000 in the security group **to your own IP only**.
+
+```bash
+journalctl -u job-autopilot-worker -f                    # watch it work
+sudo systemctl restart job-autopilot-web                 # after a config change
+```
+
+One caveat on a headless server: Naukri, Indeed and LinkedIn need a one-off
+manual login in a visible browser, which a server cannot show you. The company
+job boards need no login and are enabled by default.
+
 ## Commands
 
 ```bash

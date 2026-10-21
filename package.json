@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
-    "start": "next start -p 3000",
+    "start": "next start",
     "worker": "tsx src/worker/index.ts",
     "dev:all": "concurrently -n web,worker -c cyan,magenta \"npm:dev\" \"npm:worker\"",
     "db:push": "prisma db push",
