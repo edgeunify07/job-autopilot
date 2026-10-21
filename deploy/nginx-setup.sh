@@ -41,7 +41,25 @@ fi
 
 say "Testing the nginx config"
 nginx -t || die "nginx rejected the config; nothing was reloaded."
-systemctl reload nginx
+
+# nginx is not always a systemd service here: a box where someone ran `sudo
+# nginx` by hand has a live master process while nginx.service reads inactive,
+# and `systemctl reload` then fails with "cannot reload". Handle all three
+# states, and prefer leaving it under systemd so it survives a reboot.
+say "Reloading nginx"
+if systemctl is-active --quiet nginx; then
+  systemctl reload nginx
+  echo "    reloaded via systemd"
+elif pgrep -x nginx >/dev/null 2>&1; then
+  warn "nginx is running outside systemd — adopting it so it restarts on boot"
+  nginx -s quit 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x nginx >/dev/null 2>&1 || break; sleep 1; done
+  pgrep -x nginx >/dev/null 2>&1 && { nginx -s reload; echo "    reloaded in place"; } \
+    || { systemctl enable --now nginx >/dev/null 2>&1 && echo "    now managed by systemd"; }
+else
+  systemctl enable --now nginx >/dev/null 2>&1 || nginx
+  echo "    started"
+fi
 
 say "Checking it end to end"
 sleep 2
