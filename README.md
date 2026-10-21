@@ -159,6 +159,19 @@ behind a login; without it the app assumes localhost and does not gate.
 
 Open inbound TCP 3000 in the security group **to your own IP only**.
 
+If nginx is already running on that box, put the app behind it instead of
+opening another port:
+
+```bash
+sudo bash deploy/nginx-setup.sh
+```
+
+That moves the app back to `127.0.0.1:3000`, proxies port 80 to it, raises the
+upload limit past nginx's 1 MB default (resumes hit that) and the read timeout
+past 60s (a model call blows through it), and passes `Host` through unchanged —
+Next compares `Origin` against it for the CSRF check on every Server Action,
+and the whole setup wizard is Server Actions.
+
 ```bash
 journalctl -u job-autopilot-worker -f                    # watch it work
 sudo systemctl restart job-autopilot-web                 # after a config change
