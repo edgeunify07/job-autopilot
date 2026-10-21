@@ -23,5 +23,9 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|api/login|_next/static|_next/image|favicon.ico).*)"],
+  // The login page and the assets it loads must stay reachable, or a logged-out
+  // visitor gets the icon redirected to /login and a bare-looking login screen.
+  matcher: [
+    "/((?!login|api/login|_next/static|_next/image|favicon\\.ico|icon\\.svg|apple-icon\\.png|robots\\.txt).*)",
+  ],
 };
